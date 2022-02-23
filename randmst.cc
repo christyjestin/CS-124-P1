@@ -111,7 +111,7 @@ float largest_weight(std::vector<edge> mst) {
 
 // find the average weight of edges in a minimum spanning tree
 float avg(std::vector<float> sums) {
-    return (std::accumulate(sums.begin(), sums.end(), 0.0f)) / sums.size();
+    return std::accumulate(sums.begin(), sums.end(), 0.0f) / sums.size();
 }
 
 int main(int argc, char** argv) {

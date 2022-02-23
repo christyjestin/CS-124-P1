@@ -1,5 +1,4 @@
-#include <unordered_map>
-
+// Union Find data structure
 struct ufds {
     int* parent;
     int* rank;
@@ -39,6 +38,6 @@ struct ufds {
     }
 
     void unite(int n, int m) {
-        link(find(n), ufds::find(m));
+        link(find(n), find(m));
     }
 };
