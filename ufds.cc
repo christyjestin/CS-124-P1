@@ -1,8 +1,18 @@
 #include <unordered_map>
 
 struct ufds {
-    std::unordered_map<int, int> parent;
-    std::unordered_map<int, int> rank;
+    int* parent;
+    int* rank;
+
+    ufds (int n) {
+        parent = new int[n];
+        rank = new int[n];
+    }
+
+    ~ufds () {
+        delete parent;
+        delete rank;
+    }
 
     int find(int n) {
         if (parent[n] == n) {
