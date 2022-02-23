@@ -7,7 +7,7 @@
 #include <unordered_map>
 #include <string>
 #include "ufds.cc"
-#include "max_weights.cc" // for flag of 2, automates pruning strategy
+#include "max_weights.cc" // used for pruning
 
 struct edge {
     int u;
@@ -46,6 +46,7 @@ std::vector<edge> zero_dim_graph(int n) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = unif();
+            // no need to prune for sufficiently small n
             if (n <= 8192 || weight < max_weights["0 " + std::to_string(n / 2)]) {
                 edges.push_back(edge {i, j, weight});
             }
@@ -68,6 +69,7 @@ std::vector<edge> higher_dim_graph(int n, int dim) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = dist(nodes[i].coords, nodes[j].coords);
+            // no need to prune for sufficiently small n
             if (n <= 8192 || weight < max_weights[std::to_string(dim) + " " + std::to_string(n / 2)]) {
                 edges.push_back(edge {i, j, weight});
             }
@@ -92,6 +94,7 @@ std::vector<edge> kruskal(int n, std::vector<edge> edges) {
             if ((int) mst.size() == n-1) break;
         }
     }
+    assert((int) mst.size() == n-1);
     return mst;
 }
 
@@ -156,30 +159,3 @@ int main(int argc, char** argv) {
     }
     if (flag != 2) printf("average tree size is %f for %d points with %d trials and %d dimensions\n", avg(tree_sizes), n, numtrials, dim);
 }
-
-// n=128, 5 trials, 2D: 0.15450
-// n=256, 5 trials, 2D: 0.105021
-// n=512, 5 trials, 2D: 0.085148
-// n=1024, 5 trials, 2D: 0.063156
-// n=2048, 5 trials, 2D: 0.040723
-// n=4096, 5 trials, 2D: 0.030502
-// n=8192, 5 trials, 2D: 0.026732
-
-//0.10502
-
-
-// n = 8192, 0.001257 max largest for 0D
-// n = 8192, d = 3d, get 0.074125
-// n = 8192, d = 4d, get 0.159176
-
-
-// RESULTS - numtrials = 5 for everything
-// n = 128; 256; 512; 1024; 2048; 4096; 8192; 16384; 32768; 65536; 131072; 262144;
-
-// D = 0: [1.151236, 1.231376, ]
-
-// to do: 
-// - try shell scripting to automate these commands for diff inputs
-// - run like 20 trials for 8192 and make that the cutoff
-// - christy idea: do same cutoff idea but use the 8192 cutoff for 16384 trials, use those for 131072, etc. - do this for all dims
-// - make file so they can just do make randmst, also go over all the drive instructions fully don't miss anything
