@@ -4,8 +4,10 @@
 #include <numeric>
 #include <cassert>
 #include <math.h>
+#include <unordered_map>
+#include <string>
 #include "ufds.cc"
-#include "max_weights.cc"
+#include "max_weights.cc" // for flag of 2, automates pruning strategy
 
 struct edge {
     int u;
@@ -44,7 +46,7 @@ std::vector<edge> zero_dim_graph(int n) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = unif();
-            if (n <= 8192 || weight < 2 * weights[0]) {
+            if (n <= 8192 || weight < max_weights["0 " + std::to_string(n / 2)]) {
                 edges.push_back(edge {i, j, weight});
             }
         }
@@ -66,7 +68,7 @@ std::vector<edge> higher_dim_graph(int n, int dim) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = dist(nodes[i].coords, nodes[j].coords);
-            if (n <= 8192 || weight < 2 * weights[dim]) {
+            if (n <= 8192 || weight < max_weights[std::to_string(dim) + " " + std::to_string(n / 2)]) {
                 edges.push_back(edge {i, j, weight});
             }
         }
@@ -114,14 +116,27 @@ float avg(std::vector<float> sums) {
     return std::accumulate(sums.begin(), sums.end(), 0.0f) / sums.size();
 }
 
+// print our updated map of weights
+void print_map(std::unordered_map<std::string, float> map, std::string map_name) {
+    std::string output = "#include <unordered_map>\n\nstd::unordered_map<std::string, float> " + map_name + " ({";
+    for (auto keyval : map) {
+        output += "\n\t{\"" + keyval.first + "\", " + std::to_string(keyval.second) + "},";
+    }
+    output +="\n});";
+    printf("%s", output.c_str());
+}
+
 int main(int argc, char** argv) {
     assert(argc == 5);
+    // flag 0 outputs only avg, flag 1 outputs info for each mst, flag 2 automates pruning
+    int flag = atoi(argv[1]);
+    assert(flag >= 0 && flag < 3);
     int n = atoi(argv[2]);
     int numtrials = atoi(argv[3]);
     int dim = atoi(argv[4]);
     srand(time(0));
 
-    float max_weight;
+    float max_weight = 0;
     std::vector<float> tree_sizes;
     for (int i = 0; i < numtrials; i++) {
         std::vector<edge> graph = dim == 0 ? zero_dim_graph(n) : higher_dim_graph(n, dim);
@@ -130,14 +145,16 @@ int main(int argc, char** argv) {
         float size = sum_weights(mst);
         tree_sizes.push_back(size);
 
-
         float lw = largest_weight(mst);
-        printf("largest weights: %f\n", lw);
+        if (flag == 1) printf("largest weight: %f\n", lw);
         if (lw > max_weight) max_weight = lw;
-    
     }
-    printf("max largest weight: %f\n", max_weight);
-    printf("average tree size: %f\n", avg(tree_sizes));
+    if (flag == 1) printf("max largest weight: %f\n", max_weight);
+    if (flag == 2) {
+        max_weights[std::to_string(dim) + " " + std::to_string(n)] = max_weight;
+        print_map(max_weights, (std::string) "max_weights");
+    }
+    if (flag != 2) printf("average tree size is %f for %d points with %d trials and %d dimensions\n", avg(tree_sizes), n, numtrials, dim);
 }
 
 // n=128, 5 trials, 2D: 0.15450
@@ -154,10 +171,6 @@ int main(int argc, char** argv) {
 // n = 8192, 0.001257 max largest for 0D
 // n = 8192, d = 3d, get 0.074125
 // n = 8192, d = 4d, get 0.159176
-
-
-
-
 
 
 // RESULTS - numtrials = 5 for everything
