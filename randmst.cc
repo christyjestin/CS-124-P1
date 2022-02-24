@@ -165,6 +165,8 @@ int main(int argc, char** argv) {
 
 // D = 0: [1.151236, 1.231376, ]
 
-// to do: try shell scripting to automate these commands for diff inputs
+// to do: 
+// - try shell scripting to automate these commands for diff inputs
 // - run like 20 trials for 8192 and make that the cutoff
 // - christy idea: do same cutoff idea but use the 8192 cutoff for 16384 trials, use those for 131072, etc. - do this for all dims
+// - make file so they can just do make randmst, also go over all the drive instructions fully don't miss anything
