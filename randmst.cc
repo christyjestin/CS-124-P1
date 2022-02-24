@@ -44,14 +44,11 @@ float dist(std::vector<float> a, std::vector<float> b) {
     return sqrt(std::accumulate(diff.begin(), diff.end(), 0.0f));
 }
 
-std::vector<edge> zero_dim_graph(int n) {
+std::vector<edge> zero_dim_graph(int n, float threshold) {
     std::vector<edge> edges;
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = unif();
-            // reasonable to assume that the largest edge needed will not be longer than the largest edge of prior n
-            // since points get denser as denser as n increases; we also saw this being reflected in the data
-            float threshold = n == 128 ? 1 : max_weights_0[(int) log2(n / 128) - 1];
             // no need to prune for sufficiently small n
             if (n <= 8192 || weight < threshold) {
                 edges.push_back(edge {i, j, weight});
@@ -61,7 +58,7 @@ std::vector<edge> zero_dim_graph(int n) {
     return edges;
 }
 
-std::vector<edge> higher_dim_graph(int n, int dim, std::vector<float> max_weights) {
+std::vector<edge> higher_dim_graph(int n, int dim, float threshold) {
     assert(dim != 1 && dim < 5);
     std::vector<euclid_node> nodes;
     std::vector<edge> edges;
@@ -75,7 +72,6 @@ std::vector<edge> higher_dim_graph(int n, int dim, std::vector<float> max_weight
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = dist(nodes[i].coords, nodes[j].coords);
-            float threshold = n == 128 ? 1 : max_weights[(int) log2(n / 128) - 1];
             // no need to prune for sufficiently small n
             if (n <= 8192 || weight < threshold) {
                 edges.push_back(edge {i, j, weight});
@@ -144,11 +140,12 @@ void print_info(int dim, std::vector<float> max_weights, std::vector<float> aver
 }
 
 int main(int argc, char** argv) {
-    assert(argc == 5);
+    // only flag 3 should have 6 arguments
+    assert(argc == 5 || (argc == 6 && atoi(argv[1]) == 3));
     // flag 0 outputs only avg, flag 1 outputs info for each mst, flag 2 automates pruning
     // use flag 0 for grading as described in P1 description
     int flag = atoi(argv[1]);
-    assert(flag >= 0 && flag < 3);
+    assert(flag >= 0 && flag < 4);
     int n = atoi(argv[2]);
     int numtrials = atoi(argv[3]);
     int dim = atoi(argv[4]);
@@ -182,7 +179,11 @@ int main(int argc, char** argv) {
     float max_weight = 0;
     std::vector<float> tree_sizes;
     for (int i = 0; i < numtrials; i++) {
-        std::vector<edge> graph = dim == 0 ? zero_dim_graph(n) : higher_dim_graph(n, dim, max_weights);
+        // reasonable to assume that the largest edge needed will not be longer than the largest edge of prior n
+        // since points get denser as denser as n increases; we also saw this being reflected in the data
+        // flag 3 allows custom threshold
+        float threshold = flag == 3 ? atof(argv[5]) : (n == 128 ? 1 : max_weights[(int) log2(n / 128) - 1]);
+        std::vector<edge> graph = dim == 0 ? zero_dim_graph(n, threshold) : higher_dim_graph(n, dim, threshold);
         std::vector<edge> mst = kruskal(n, graph);
 
         float size = sum_weights(mst);
@@ -193,7 +194,7 @@ int main(int argc, char** argv) {
         if (lw > max_weight) max_weight = lw;
     }
     float avg_size = avg(tree_sizes);
-    if (flag == 1) printf("max largest weight: %f\n", max_weight);
+    if (flag == 1 || flag == 3) printf("max largest weight: %f\n", max_weight);
     if (flag == 2) {
         max_weights.push_back(max_weight);
         average_sizes.push_back(avg_size);
