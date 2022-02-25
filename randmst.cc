@@ -118,7 +118,7 @@ float largest_weight(std::vector<edge> mst) {
     return mst.back().dist;
 }
 
-// find the average weight of edges in a minimum spanning tree
+// find the average total weight of edges in a minimum spanning tree
 float avg(std::vector<float> sums) {
     return std::accumulate(sums.begin(), sums.end(), 0.0f) / sums.size();
 }
@@ -143,7 +143,8 @@ int main(int argc, char** argv) {
     // only flag 3 should have 6 arguments
     assert(argc == 5 || (argc == 6 && atoi(argv[1]) == 3));
     // flag 0 outputs only avg, flag 1 outputs info for each mst, flag 2 automates pruning
-    // use flag 0 for grading as described in P1 description
+    // flag 3 allows custom threshold
+    // please use flag 0 for grading as described in P1 description
     int flag = atoi(argv[1]);
     assert(flag >= 0 && flag < 4);
     int n = atoi(argv[2]);
@@ -151,7 +152,7 @@ int main(int argc, char** argv) {
     int dim = atoi(argv[4]);
     srand(time(0));
     
-    // cases for different dims to get different vectors, passed into functions
+    // cases for different dims to get different vectors for use in graph generation
     std::vector<float> max_weights;
     std::vector<float> average_sizes;
     switch (dim) {

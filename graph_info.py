@@ -9,7 +9,7 @@ if __name__ == "__main__":
     assert len(sys.argv) == 2
     dim = int(sys.argv[1])
     assert dim in dims
-    for n in numpoints:        
+    for n in numpoints:
         print(n, dim)
         start_time = datetime.now()
         print("start:" + start_time.strftime("%H:%M:%S"))
