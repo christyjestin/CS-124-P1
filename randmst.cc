@@ -4,10 +4,13 @@
 #include <numeric>
 #include <cassert>
 #include <math.h>
-#include <unordered_map>
 #include <string>
 #include "ufds.cc"
-#include "max_weights.cc" // used for pruning
+// used for generating pruning thresholds and storing averages w/ flag 2
+#include "graph_info_0.cc"
+#include "graph_info_2.cc"
+#include "graph_info_3.cc"
+#include "graph_info_4.cc"
 
 struct edge {
     int u;
@@ -46,8 +49,11 @@ std::vector<edge> zero_dim_graph(int n) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = unif();
+            // reasonable to assume that the largest edge needed will not be longer than the largest edge of prior n
+            // since points get denser as denser as n increases; we also saw this being reflected in the data
+            float threshold = n == 128 ? 1 : max_weights_0[(int) log2(n / 128) - 1];
             // no need to prune for sufficiently small n
-            if (n <= 8192 || weight < max_weights["0 " + std::to_string(n / 2)]) {
+            if (n <= 8192 || weight < threshold) {
                 edges.push_back(edge {i, j, weight});
             }
         }
@@ -55,7 +61,7 @@ std::vector<edge> zero_dim_graph(int n) {
     return edges;
 }
 
-std::vector<edge> higher_dim_graph(int n, int dim) {
+std::vector<edge> higher_dim_graph(int n, int dim, std::vector<float> max_weights) {
     assert(dim != 1 && dim < 5);
     std::vector<euclid_node> nodes;
     std::vector<edge> edges;
@@ -69,8 +75,9 @@ std::vector<edge> higher_dim_graph(int n, int dim) {
     for (int i = 0; i < n; i++) {
         for (int j = i+1; j < n; j++) {
             float weight = dist(nodes[i].coords, nodes[j].coords);
+            float threshold = n == 128 ? 1 : max_weights[(int) log2(n / 128) - 1];
             // no need to prune for sufficiently small n
-            if (n <= 8192 || weight < max_weights[std::to_string(dim) + " " + std::to_string(n / 2)]) {
+            if (n <= 8192 || weight < threshold) {
                 edges.push_back(edge {i, j, weight});
             }
         }
@@ -94,6 +101,7 @@ std::vector<edge> kruskal(int n, std::vector<edge> edges) {
             if ((int) mst.size() == n-1) break;
         }
     }
+    // fails if we're overpruning
     assert((int) mst.size() == n-1);
     return mst;
 }
@@ -119,30 +127,62 @@ float avg(std::vector<float> sums) {
     return std::accumulate(sums.begin(), sums.end(), 0.0f) / sums.size();
 }
 
-// print our updated map of weights
-void print_map(std::unordered_map<std::string, float> map, std::string map_name) {
-    std::string output = "#include <unordered_map>\n\nstd::unordered_map<std::string, float> " + map_name + " ({";
-    for (auto keyval : map) {
-        output += "\n\t{\"" + keyval.first + "\", " + std::to_string(keyval.second) + "},";
+// print our updated vectors of weights and average tree sizes for the corresponding dimension
+void print_info(int dim, std::vector<float> max_weights, std::vector<float> average_sizes) {
+    std::string dim_string = std::to_string(dim);
+    std::string output = "#include <vector>\n\nstd::vector<float> max_weights_" + dim_string + " {";
+    for (auto weight : max_weights) {
+        output += "\n\t" + std::to_string(weight) + ", ";
     }
-    output +="\n});";
+    output +="\n};\n\n";
+    output += "std::vector<float> average_sizes_" + dim_string + " {";
+    for (auto size : average_sizes) {
+        output += "\n\t" + std::to_string(size) + ", ";
+    }
+    output +="\n};";
     printf("%s", output.c_str());
 }
 
 int main(int argc, char** argv) {
     assert(argc == 5);
     // flag 0 outputs only avg, flag 1 outputs info for each mst, flag 2 automates pruning
+    // use flag 0 for grading as described in P1 description
     int flag = atoi(argv[1]);
     assert(flag >= 0 && flag < 3);
     int n = atoi(argv[2]);
     int numtrials = atoi(argv[3]);
     int dim = atoi(argv[4]);
     srand(time(0));
+    
+    // cases for different dims to get different vectors, passed into functions
+    std::vector<float> max_weights;
+    std::vector<float> average_sizes;
+    switch (dim) {
+        case 0:
+            max_weights = max_weights_0;
+            average_sizes = average_sizes_0;
+            break;
+        case 2:
+            max_weights = max_weights_2;
+            average_sizes = average_sizes_2;
+            break;
+        case 3:
+            max_weights = max_weights_3;
+            average_sizes = average_sizes_3;
+            break;
+        case 4:
+            max_weights = max_weights_4;
+            average_sizes = average_sizes_4;
+            break;
+        default:
+            assert(false);
+            break;
+    }
 
     float max_weight = 0;
     std::vector<float> tree_sizes;
     for (int i = 0; i < numtrials; i++) {
-        std::vector<edge> graph = dim == 0 ? zero_dim_graph(n) : higher_dim_graph(n, dim);
+        std::vector<edge> graph = dim == 0 ? zero_dim_graph(n) : higher_dim_graph(n, dim, max_weights);
         std::vector<edge> mst = kruskal(n, graph);
 
         float size = sum_weights(mst);
@@ -152,10 +192,12 @@ int main(int argc, char** argv) {
         if (flag == 1) printf("largest weight: %f\n", lw);
         if (lw > max_weight) max_weight = lw;
     }
+    float avg_size = avg(tree_sizes);
     if (flag == 1) printf("max largest weight: %f\n", max_weight);
     if (flag == 2) {
-        max_weights[std::to_string(dim) + " " + std::to_string(n)] = max_weight;
-        print_map(max_weights, (std::string) "max_weights");
+        max_weights.push_back(max_weight);
+        average_sizes.push_back(avg_size);
+        print_info(dim, max_weights, average_sizes);
     }
-    if (flag != 2) printf("average tree size is %f for %d points with %d trials and %d dimensions\n", avg(tree_sizes), n, numtrials, dim);
+    if (flag != 2) printf("average tree size is %f for %d points with %d trials and %d dimensions\n", avg_size, n, numtrials, dim);
 }
